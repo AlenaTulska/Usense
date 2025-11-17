@@ -14,11 +14,9 @@ import {FormControl, ReactiveFormsModule, FormBuilder, Validators} from '@angula
 export class AppComponent implements OnInit {
   apiService = inject(ApiServiceService);
   fb = inject(FormBuilder);
-
   todoForm = this.fb.group({
   title: ['', Validators.required]
   });
-
   taskList:Todo[] = [];
   filter: 'all' | 'completed' | 'pending' = 'all';
   priorityOrder: Record<string, number> = { high: 3, medium: 2, low: 1 };
@@ -29,24 +27,23 @@ export class AppComponent implements OnInit {
     const savedId = localStorage.getItem('nextId');
     if (saved) this.taskList = JSON.parse(saved);
     if (savedId) this.nextId = Number(savedId);
+    else this.computeNextId();
   }
   saveTasks() {
     localStorage.setItem('taskList', JSON.stringify(this.taskList));
     localStorage.setItem('nextId', String(this.nextId));
   }
-  toggleCompleted(task: any) {
+  toggleCompleted(task: Todo) {
     task.completed = !task.completed;
     this.saveTasks();
     this.sortByPriority(); 
   }
-
   get filteredTasks() {
     if (this.filter === 'completed') return this.taskList.filter(t => t.completed);
     if (this.filter === 'pending') return this.taskList.filter(t => !t.completed);
     return this.taskList;
   }
-
- addTodo() {
+  addTodo() {
     const title = this.todoForm.value.title?.trim();
     if (!title) return;
 
@@ -67,22 +64,30 @@ export class AppComponent implements OnInit {
     this.saveTasks();
     this.todoForm.reset();
   }
-
-editTodo(todo: Todo) {
+  editTodo(todo: Todo) {
   this.editingTodoId = todo.id;
   this.todoForm.setValue({ title: todo.title });
-}
-
-setPriority(todo: Todo, level: 'low' | 'medium' | 'high') {
+  }
+  setPriority(todo: Todo, level: 'low' | 'medium' | 'high') {
   todo.priority = level;
-}
-sortByPriority() {
+  }
+  sortByPriority() {
   this.taskList.sort((a, b) => this.priorityOrder[b.priority] - this.priorityOrder[a.priority]);
-}
-deleteTodo(id: number) {
+  }
+  deleteTodo(id: number) {
   this.apiService.deleteTodo(id).subscribe(() => {
   this.taskList = this.taskList.filter(t => t.id !== id);
+  this.computeNextId();  
+  this.saveTasks();     
   });
+  }
+  private computeNextId() {
+  if (!this.taskList || this.taskList.length === 0) {
+    this.nextId = 1;
+    return;
+  }
+  const maxId = Math.max(...this.taskList.map(t => t.id));
+  this.nextId = maxId + 1;
 }
 }
 
